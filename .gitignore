@@ -1,0 +1,6 @@
+backups/
+versions/
+data.json
+_temp_check.js
+seed_mock_train.js
+bug-report-cc.md
