@@ -2662,10 +2662,32 @@ function renderMonthView() {
     <div class="cal-wd">三</div><div class="cal-wd">四</div>
     <div class="cal-wd">五</div><div class="cal-wd">六</div><div class="cal-wd">日</div>`;
 
-  // Leading days from prev month
+  // Leading days from prev month (with schedules)
   for (let i = 0; i < startDay; i++) {
     const dd = new Date(calYear, calMonth, i - startDay + 1);
-    html += `<div class="cal-day other-month"><div class="cal-day-num">${dd.getDate()}</div></div>`;
+    const ds = `${dd.getFullYear()}-${String(dd.getMonth()+1).padStart(2,'0')}-${String(dd.getDate()).padStart(2,'0')}`;
+    const dayEvs = schedules.filter(s => {
+      const ed = s.end_date || s.start_date;
+      const onDate = ds >= s.start_date && ds <= ed;
+      return onDate && shouldShow(s) && isTagFiltered(s.tags) && isUserFiltered(s.owner);
+    });
+    const overlay = getDayOverlap(ds);
+    const shown = dayEvs.map(s => {
+      const c = getTagColor(s.tags);
+      const badge = getOwnerBadge(s.owner);
+      return `<div class="cal-ev" style="background:${c}28;color:${c};cursor:pointer" title="${s.owner}: ${s.start_time ? s.start_time + ' ' : ''}${s.title}" onclick="event.stopPropagation();showDetail('${s.id}')">${badge}${s.start_time ? s.start_time + ' ' : ''}${s.title}</div>`;
+    }).join('');
+    const overlapIndicator = overlay.count > 1
+      ? `<div class="cal-overlap-indicator" style="border-color:${overlay.count >= 3 ? '#f04f4f' : '#f0a030'}" title="${overlay.people.join('、')}在此日有安排">${overlay.count}人有安排</div>`
+      : '';
+    html += `<div class="cal-day other-month">
+      <div class="cal-day-num-wrap">
+        <span class="cal-day-num">${dd.getDate()}</span>
+        <button class="cal-day-add" onclick="event.stopPropagation();quickAddSchedule('${ds}')" title="添加日程">+</button>
+      </div>
+      <div class="cal-events">${shown}</div>
+      ${overlapIndicator}
+    </div>`;
   }
   for (let day = 1; day <= last.getDate(); day++) {
     const ds = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
@@ -2697,7 +2719,30 @@ function renderMonthView() {
   }
   const remain = (7 - (startDay + last.getDate()) % 7) % 7;
   for (let i = 1; i <= remain; i++) {
-    html += `<div class="cal-day other-month"><div class="cal-day-num">${i}</div></div>`;
+    const dd = new Date(calYear, calMonth + 1, i);
+    const ds = `${dd.getFullYear()}-${String(dd.getMonth()+1).padStart(2,'0')}-${String(dd.getDate()).padStart(2,'0')}`;
+    const dayEvs = schedules.filter(s => {
+      const ed = s.end_date || s.start_date;
+      const onDate = ds >= s.start_date && ds <= ed;
+      return onDate && shouldShow(s) && isTagFiltered(s.tags) && isUserFiltered(s.owner);
+    });
+    const overlay = getDayOverlap(ds);
+    const shown = dayEvs.map(s => {
+      const c = getTagColor(s.tags);
+      const badge = getOwnerBadge(s.owner);
+      return `<div class="cal-ev" style="background:${c}28;color:${c};cursor:pointer" title="${s.owner}: ${s.start_time ? s.start_time + ' ' : ''}${s.title}" onclick="event.stopPropagation();showDetail('${s.id}')">${badge}${s.start_time ? s.start_time + ' ' : ''}${s.title}</div>`;
+    }).join('');
+    const overlapIndicator = overlay.count > 1
+      ? `<div class="cal-overlap-indicator" style="border-color:${overlay.count >= 3 ? '#f04f4f' : '#f0a030'}" title="${overlay.people.join('、')}在此日有安排">${overlay.count}人有安排</div>`
+      : '';
+    html += `<div class="cal-day other-month">
+      <div class="cal-day-num-wrap">
+        <span class="cal-day-num">${i}</span>
+        <button class="cal-day-add" onclick="event.stopPropagation();quickAddSchedule('${ds}')" title="添加日程">+</button>
+      </div>
+      <div class="cal-events">${shown}</div>
+      ${overlapIndicator}
+    </div>`;
   }
   html += `</div>`;
   document.getElementById('calBody').innerHTML = html;
