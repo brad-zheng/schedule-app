@@ -4087,15 +4087,24 @@ function _ghSetSyncState(state, errMsg) {
 function ghAutoInit() {
   if (!localStorage.getItem('gh_token') || !localStorage.getItem('gh_repo')) return;
   _ghSetSyncState('syncing');
+  showToast('正在同步云端数据…');
   ghPull()
     .then(pulled => {
       if (pulled) {
         renderHome(); renderCalendar(); renderCalSidebarTodos();
+        renderScheduleList(); renderTodoFull(); renderNotes(); renderTrash();
+        updateOverdueBadge(); renderTagFilterPanel();
       }
       return ghPush();
     })
-    .then(() => { _ghSetSyncState('ok'); })
-    .catch(e => { _ghSetSyncState('error', e.message); });
+    .then(() => {
+      _ghSetSyncState('ok');
+      showToast('云端同步完成');
+    })
+    .catch(e => {
+      _ghSetSyncState('error', e.message);
+      showToast('同步失败：' + e.message, 'error');
+    });
 }
 
 function saveGithubConfig() {
