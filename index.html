@@ -1456,10 +1456,10 @@ ul, ol { list-style: none; }
     <span class="nav-logo-name">日程</span>
   </div>
   <div class="sidebar-nav">
-    <div class="nav-link active" data-page="home" onclick="navigate('home')">
+    <div class="nav-link" data-page="home" onclick="navigate('home')">
       <span class="nav-icon">🏠</span><span class="nav-text">首页</span>
     </div>
-    <div class="nav-link" data-page="calendar" onclick="navigate('calendar')">
+    <div class="nav-link active" data-page="calendar" onclick="navigate('calendar')">
       <span class="nav-icon">📅</span><span class="nav-text">日历</span>
     </div>
     <div class="nav-link" data-page="schedules" onclick="navigate('schedules')">
@@ -1503,7 +1503,7 @@ ul, ol { list-style: none; }
     <!-- ==============================
          PAGE: HOME
          ============================== -->
-    <div id="page-home" class="page active">
+    <div id="page-home" class="page">
       <div class="quick-bar">
         <div class="quick-date" id="home-date-label"></div>
         <div style="display:flex;gap:8px">
@@ -1537,7 +1537,7 @@ ul, ol { list-style: none; }
     <!-- ==============================
          PAGE: CALENDAR
          ============================== -->
-    <div id="page-calendar" class="page">
+    <div id="page-calendar" class="page active">
       <div class="cal-main-area" style="display:flex;flex-direction:column;flex:1;overflow:hidden;min-height:0;">
         <div class="cal-toolbar">
           <div class="cal-nav">
@@ -2355,6 +2355,37 @@ function makeChip(tags, small) {
   const sz = small ? '10.5px' : '11.5px';
   return `<span class="tag-chip" style="background:${color}22;color:${color};font-size:${sz}">${label}</span>`;
 }
+function getTagSortKey(tags) {
+  // 会议排最前，其余按 TAGS_CONFIG 顺序，无标签排最后
+  if (!tags || tags.length < 2) return 9999;
+  const parent = TAGS_CONFIG[tags[0]];
+  const child = parent?.children?.[tags[1]];
+  if (!parent || !child) return 9999;
+  if (tags[1] === '会议') return -1;
+  return (parent.order || 0) * 100 + (child.order || 0) + 1;
+}
+function getOwnerSortKey(owner) {
+  // 本人排最后，其他人按 people 顺序
+  if (owner === '本人') return 9999;
+  const idx = people.indexOf(owner);
+  return idx >= 0 ? idx : 9998;
+}
+function sortByTagThenTime(events) {
+  return events.sort((a, b) => {
+    // 1) 按人员排序
+    const okA = getOwnerSortKey(a.owner);
+    const okB = getOwnerSortKey(b.owner);
+    if (okA !== okB) return okA - okB;
+    // 2) 按标签排序
+    const skA = getTagSortKey(a.tags);
+    const skB = getTagSortKey(b.tags);
+    if (skA !== skB) return skA - skB;
+    // 3) 按时间排序
+    const tA = a.start_time || '';
+    const tB = b.start_time || '';
+    return tA.localeCompare(tB);
+  });
+}
 function fmtDate(dateStr) {
   if (!dateStr) return '';
   const d = new Date(dateStr + 'T00:00:00');
@@ -2662,10 +2693,33 @@ function renderMonthView() {
     <div class="cal-wd">三</div><div class="cal-wd">四</div>
     <div class="cal-wd">五</div><div class="cal-wd">六</div><div class="cal-wd">日</div>`;
 
-  // Leading days from prev month
+  // Leading days from prev month (with schedules)
   for (let i = 0; i < startDay; i++) {
     const dd = new Date(calYear, calMonth, i - startDay + 1);
-    html += `<div class="cal-day other-month"><div class="cal-day-num">${dd.getDate()}</div></div>`;
+    const ds = `${dd.getFullYear()}-${String(dd.getMonth()+1).padStart(2,'0')}-${String(dd.getDate()).padStart(2,'0')}`;
+    const dayEvs = schedules.filter(s => {
+      const ed = s.end_date || s.start_date;
+      const onDate = ds >= s.start_date && ds <= ed;
+      return onDate && shouldShow(s) && isTagFiltered(s.tags) && isUserFiltered(s.owner);
+    });
+    const overlay = getDayOverlap(ds);
+    sortByTagThenTime(dayEvs);
+    const shown = dayEvs.map(s => {
+      const c = getTagColor(s.tags);
+      const badge = getOwnerBadge(s.owner);
+      return `<div class="cal-ev" style="background:${c}28;color:${c};cursor:pointer" title="${s.owner}: ${s.start_time ? s.start_time + ' ' : ''}${s.title}" onclick="event.stopPropagation();showDetail('${s.id}')">${badge}${s.start_time ? s.start_time + ' ' : ''}${s.title}</div>`;
+    }).join('');
+    const overlapIndicator = overlay.count > 1
+      ? `<div class="cal-overlap-indicator" style="border-color:${overlay.count >= 3 ? '#f04f4f' : '#f0a030'}" title="${overlay.people.join('、')}在此日有安排">${overlay.count}人有安排</div>`
+      : '';
+    html += `<div class="cal-day other-month">
+      <div class="cal-day-num-wrap">
+        <span class="cal-day-num">${dd.getDate()}</span>
+        <button class="cal-day-add" onclick="event.stopPropagation();quickAddSchedule('${ds}')" title="添加日程">+</button>
+      </div>
+      <div class="cal-events">${shown}</div>
+      ${overlapIndicator}
+    </div>`;
   }
   for (let day = 1; day <= last.getDate(); day++) {
     const ds = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
@@ -2678,6 +2732,7 @@ function renderMonthView() {
     });
     const overlay = getDayOverlap(ds);
 
+    sortByTagThenTime(dayEvs);
     const shown = dayEvs.map(s => {
       const c = getTagColor(s.tags);
       const badge = getOwnerBadge(s.owner);
@@ -2697,7 +2752,31 @@ function renderMonthView() {
   }
   const remain = (7 - (startDay + last.getDate()) % 7) % 7;
   for (let i = 1; i <= remain; i++) {
-    html += `<div class="cal-day other-month"><div class="cal-day-num">${i}</div></div>`;
+    const dd = new Date(calYear, calMonth + 1, i);
+    const ds = `${dd.getFullYear()}-${String(dd.getMonth()+1).padStart(2,'0')}-${String(dd.getDate()).padStart(2,'0')}`;
+    const dayEvs = schedules.filter(s => {
+      const ed = s.end_date || s.start_date;
+      const onDate = ds >= s.start_date && ds <= ed;
+      return onDate && shouldShow(s) && isTagFiltered(s.tags) && isUserFiltered(s.owner);
+    });
+    const overlay = getDayOverlap(ds);
+    sortByTagThenTime(dayEvs);
+    const shown = dayEvs.map(s => {
+      const c = getTagColor(s.tags);
+      const badge = getOwnerBadge(s.owner);
+      return `<div class="cal-ev" style="background:${c}28;color:${c};cursor:pointer" title="${s.owner}: ${s.start_time ? s.start_time + ' ' : ''}${s.title}" onclick="event.stopPropagation();showDetail('${s.id}')">${badge}${s.start_time ? s.start_time + ' ' : ''}${s.title}</div>`;
+    }).join('');
+    const overlapIndicator = overlay.count > 1
+      ? `<div class="cal-overlap-indicator" style="border-color:${overlay.count >= 3 ? '#f04f4f' : '#f0a030'}" title="${overlay.people.join('、')}在此日有安排">${overlay.count}人有安排</div>`
+      : '';
+    html += `<div class="cal-day other-month">
+      <div class="cal-day-num-wrap">
+        <span class="cal-day-num">${i}</span>
+        <button class="cal-day-add" onclick="event.stopPropagation();quickAddSchedule('${ds}')" title="添加日程">+</button>
+      </div>
+      <div class="cal-events">${shown}</div>
+      ${overlapIndicator}
+    </div>`;
   }
   html += `</div>`;
   document.getElementById('calBody').innerHTML = html;
@@ -2740,6 +2819,7 @@ function renderWeekView() {
       const onDate = ds >= s.start_date && ds <= ed;
       return onDate && !s.start_time && shouldShow(s) && isTagFiltered(s.tags) && isUserFiltered(s.owner);
     });
+    sortByTagThenTime(allDayEvs);
     alldayHtml += `<div class="wv-allday-cell">` +
       allDayEvs.map(s => {
         const c = getTagColor(s.tags);
@@ -2773,6 +2853,7 @@ function renderWeekView() {
       return true;
     });
 
+    sortByTagThenTime(dayEvs);
     const parsed = dayEvs.map(s => {
       const [sh, sm] = (s.start_time || '00:00').split(':').map(Number);
       let eh, em;
@@ -2908,29 +2989,35 @@ function renderYearView() {
 }
 
 function buildYearTagGroups(evs) {
-  const groups = {};
-  for (const s of evs) {
-    const key = s.tags ? (s.tags[1] || s.tags[0]) : '其他';
-    const color = getTagColor(s.tags);
-    if (!groups[key]) groups[key] = { color, count: 0 };
-    groups[key].count++;
+  // 按 TAGS_CONFIG 顺序构建全部二级标签列表（含数量为0的标签）
+  const entries = [];
+  const parents = Object.entries(TAGS_CONFIG).sort((a,b) => (a[1].order||0) - (b[1].order||0));
+  for (const [pName, pData] of parents) {
+    const children = Object.entries(pData.children || {}).sort((a,b) => (a[1].order||0) - (b[1].order||0));
+    for (const [cName, cData] of children) {
+      entries.push({ key: cName, color: cData.color, count: 0 });
+    }
   }
-  return groups;
+  // 统计各标签日程数量
+  for (const s of evs) {
+    const key = s.tags ? (s.tags[1] || s.tags[0]) : '';
+    const entry = entries.find(e => e.key === key);
+    if (entry) entry.count++;
+  }
+  return entries;
 }
 
-function renderYearColumnChart(groups, total) {
-  if (total === 0) return '<div style="font-size:11px;color:var(--text-muted);text-align:center;padding:20px 0">暂无日程</div>';
-  const entries = Object.entries(groups).sort((a,b) => b[1].count - a[1].count);
-  const maxH = 80; // max bar height in px
-  const maxCount = entries[0][1].count;
+function renderYearColumnChart(entries, total) {
+  const maxCount = entries.length ? Math.max(1, ...entries.map(e => e.count)) : 1;
+  const maxH = 80;
   return `<div class="ym-chart">` +
-    entries.map(([name, g]) => {
-      const h = Math.max(6, Math.round(g.count / maxCount * maxH));
-      const pct = Math.round(g.count / total * 100);
+    entries.map(e => {
+      const h = Math.round(e.count / maxCount * maxH);
+      const pct = total > 0 ? Math.round(e.count / total * 100) : 0;
       return `<div class="ym-col-group">
-        <div class="ym-col-bar" style="height:${h}px;background:${g.color}"
-          title="${name}: ${g.count}项 (${pct}%)"></div>
-        <div class="ym-col-label" title="${name}">${name}</div>
+        <div class="ym-col-bar" style="height:${h}px;background:${e.color}"
+          title="${e.key}: ${e.count}项 (${pct}%)"></div>
+        <div class="ym-col-label" title="${e.key}">${e.key}</div>
         <div class="ym-col-pct">${pct}%</div>
       </div>`;
     }).join('') +
@@ -3197,24 +3284,52 @@ function renderCalSidebarTodos() {
     if (!isUserFiltered(t.owner)) return false;
     return true;
   });
-  // Filter by calendar view
-  if (calView === 'week') {
-    visibleTodos = visibleTodos.filter(t => {
-      var g = getTodoGroup(t);
-      return g === 'overdue' || g === 'tomorrow' || g === 'this-week';
-    });
+  // 按日历视图过滤分组
+  let allowedGroups;
+  if (calView === 'year') {
+    allowedGroups = null; // all groups
   } else if (calView === 'month') {
+    allowedGroups = ['overdue','tomorrow','this-week','next-week','this-month'];
+  } else {
+    // week (default)
+    allowedGroups = ['overdue','tomorrow','this-week'];
+  }
+  if (allowedGroups) {
     visibleTodos = visibleTodos.filter(t => {
       var g = getTodoGroup(t);
-      return g === 'overdue' || g === 'tomorrow' || g === 'this-week' || g === 'next-week' || g === 'this-month';
+      return allowedGroups.includes(g);
     });
   }
-  visibleTodos = sortTodosByDeadline(visibleTodos);
   if (visibleTodos.length === 0) {
     el.innerHTML = '<div class="empty-state" style="padding:24px 12px"><div class="empty-icon">✅</div><p>暂无待办</p></div>';
     return;
   }
-  el.innerHTML = visibleTodos.slice(0, 15).map(t => renderTodoItem(t)).join('');
+  // 按截止时间分组渲染（与首页待办模块一致）
+  const groupDefs = [
+    { key:'overdue', label:'已逾期', cls:'group-overdue' },
+    { key:'tomorrow', label:'明天', cls:'group-tomorrow' },
+    { key:'this-week', label:'本周内', cls:'' },
+    { key:'next-week', label:'下周内', cls:'' },
+    { key:'this-month', label:'本月内', cls:'' },
+    { key:'later', label:'下月及以后', cls:'' },
+  ];
+  el.innerHTML = groupDefs.map(g => {
+    if (allowedGroups && !allowedGroups.includes(g.key)) return '';
+    let items = visibleTodos.filter(t => getTodoGroup(t) === g.key);
+    items = sortTodosByDeadline(items);
+    if (items.length === 0) return '';
+    const isOpen = openGroups.includes(g.key);
+    return `<div class="todo-group ${g.cls}">
+      <div class="tg-header" onclick="toggleGroup('${g.key}','cal-sidebar-todos')">
+        <span class="tg-title">${g.label}</span>
+        <span class="tg-count">${items.length}</span>
+        <span class="tg-chevron ${isOpen ? 'open' : ''}">▶</span>
+      </div>
+      <div class="tg-body" id="tg-${g.key}-cal-sidebar-todos" style="${isOpen ? '' : 'display:none'}">
+        ${items.map(t => renderTodoItem(t)).join('')}
+      </div>
+    </div>`;
+  }).filter(Boolean).join('');
 }
 
 
@@ -3900,6 +4015,10 @@ async function ghPull() {
   if (r.vault_enc && typeof r.vault_enc === 'object') {
     localStorage.setItem('vault_enc', JSON.stringify(r.vault_enc));
     if (r.vault_enc.salt) localStorage.setItem('vault_salt', JSON.stringify(r.vault_enc.salt));
+    // 若当前已解锁，重新解密更新内存（否则只有刷新页面才能看到远端数据）
+    if (_vaultPw) {
+      try { vaults = await _vOpen(r.vault_enc, _vaultPw); } catch(e) { console.warn('ghPull: vault re-decrypt failed', e); }
+    }
   }
   if (r.tags_config && typeof r.tags_config === 'object') {
     // TAGS_CONFIG 是 const，不能重赋值，逐键同步
@@ -3966,6 +4085,7 @@ async function ghSync() {
         if (ap.id === 'page-todos')     renderTodoFull();
         if (ap.id === 'page-trash')     renderTrash();
         if (ap.id === 'page-notes')     renderNoteList();
+        if (ap.id === 'page-vault')     renderVaultList();
       }
     }
     await ghPush();
@@ -4042,15 +4162,24 @@ function _ghSetSyncState(state, errMsg) {
 function ghAutoInit() {
   if (!localStorage.getItem('gh_token') || !localStorage.getItem('gh_repo')) return;
   _ghSetSyncState('syncing');
+  showToast('正在同步云端数据…');
   ghPull()
     .then(pulled => {
       if (pulled) {
         renderHome(); renderCalendar(); renderCalSidebarTodos();
+        renderScheduleList(); renderTodoFull(); renderNotes(); renderTrash();
+        updateOverdueBadge(); renderTagFilterPanel();
       }
       return ghPush();
     })
-    .then(() => { _ghSetSyncState('ok'); })
-    .catch(e => { _ghSetSyncState('error', e.message); });
+    .then(() => {
+      _ghSetSyncState('ok');
+      showToast('云端同步完成');
+    })
+    .catch(e => {
+      _ghSetSyncState('error', e.message);
+      showToast('同步失败：' + e.message, 'error');
+    });
 }
 
 function saveGithubConfig() {
@@ -4142,7 +4271,7 @@ function exportJSON() {
     notes: notes,
     trash: trash,
     people: people,
-    tagsConfig: TAGS_CONFIG,
+    tags_config: TAGS_CONFIG,
     vault_enc: _vLoadEnc()
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
@@ -4191,9 +4320,10 @@ function handleImport(input) {
       if (Array.isArray(data.notes)) { notes = data.notes; counts.push('便签 ' + notes.length); }
       if (Array.isArray(data.trash)) { trash = data.trash; counts.push('垃圾箱 ' + trash.length); }
       if (Array.isArray(data.people)) { people = data.people; persistPeople(); }
-      if (data.tagsConfig) {
-        Object.keys(TAGS_CONFIG).forEach(k => { if (!data.tagsConfig[k]) delete TAGS_CONFIG[k]; });
-        Object.assign(TAGS_CONFIG, data.tagsConfig);
+      const tc = data.tags_config || data.tagsConfig;
+      if (tc) {
+        Object.keys(TAGS_CONFIG).forEach(k => { if (!tc[k]) delete TAGS_CONFIG[k]; });
+        Object.assign(TAGS_CONFIG, tc);
         persistTagsConfig();
       }
       if (data.vault_enc) { _vSaveEnc(data.vault_enc); }
@@ -4760,6 +4890,8 @@ function showToast(msg, type) {
   renderHome();
   renderCalendar();
   renderCalSidebarTodos();
+  if (filterPanelOpen) renderTagFilterPanel();
+  if (userFilterPanelOpen) renderUserFilterPanel();
   updateSyncUI();
   updateNotifPermStatus();
   ghAutoInit();
