@@ -1092,15 +1092,103 @@ ul, ol { list-style: none; }
   .sidebar .sync-indicator { justify-content: center; padding: 8px; }
   .sidebar.collapsed { width: 0; border: none; }
   .app-body.sidebar-collapsed { padding-left: 0; }
+  /* 大屏手机横屏：垃圾箱 + 保险箱 */
+  .trash-columns { grid-template-columns: repeat(2, 1fr); }
+  .vault-toolbar { height: auto; }
 }
 @media (max-width: 768px) {
   .home-content { grid-template-columns: 1fr; }
-  .home-left { border-right: none; border-bottom: 1px solid var(--border); max-height: 40vh; }
+  .home-left { border-right: none; border-bottom: 1px solid var(--border); max-height: 50vh; }
   .cal-sidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--border); max-height: 220px; }
-  .year-view { grid-template-columns: repeat(3,1fr); }
+  /* 年视图 */
+  .yq-row { grid-template-columns: repeat(3, 1fr); }
+  /* 首页快捷栏 */
+  .quick-bar { flex-wrap: wrap; gap: 8px; padding: 8px 14px; height: auto; min-height: 52px; }
+  /* 日历工具栏 */
+  .cal-toolbar { padding: 8px 14px; height: auto; min-height: 48px; gap: 6px; }
+  .cal-current { font-size: 13px; min-width: 90px; }
+  .view-btn { padding: 4px 10px; font-size: 12px; }
+  /* 垃圾箱 */
+  .trash-columns { grid-template-columns: 1fr; }
+  .trash-page { padding: 16px 14px; }
+  /* 保险箱移动端 */
+  .vault-toolbar { height: auto; padding: 12px 14px; gap: 8px; }
+  .vault-cat-filter { padding: 6px 14px; gap: 4px; }
+  /* 表单 */
+  .form-row.cols-2 { grid-template-columns: 1fr; }
+  /* 管理页 */
+  .mgmt-toolbar { padding: 10px 14px 8px; }
+  .mgmt-list { padding: 10px 14px 16px; }
+  /* 便签 */
+  .notes-page { padding: 16px 14px; }
+  .notes-list { padding: 0; }
+  /* 筛选面板 */
+  .tag-filter-panel.open { max-height: 280px; overflow-y: auto; }
+  .cal-sidebar-body .tg-header { padding: 6px 8px; }
+  .cal-sidebar-body .todo-item { padding: 6px 8px; }
 }
 @media (max-width: 480px) {
-  .year-view { grid-template-columns: repeat(2,1fr); }
+  /* 年视图 */
+  .yq-row { grid-template-columns: repeat(2, 1fr); }
+  .ym-block { padding: 10px 12px; }
+  /* 月视图 */
+  .cal-day { padding: 1px 2px; min-height: 44px; }
+  .cal-day-num { font-size: 10px; padding: 2px 0 1px; }
+  .cal-day-num-wrap { margin-bottom: 0; }
+  .cal-ev { font-size: 10px; padding: 1px 3px; margin-bottom: 1px; line-height: 1.3; }
+  .cal-ev .owner-badge { font-size: 9px; padding: 0 2px; }
+  .cal-day-add { width: 16px; height: 16px; font-size: 11px; }
+  /* 周视图 */
+  .week-view { grid-template-columns: 30px repeat(7, 1fr); }
+  .wv-allday-row { grid-template-columns: 30px repeat(7, 1fr); }
+  .wv-hour-row { grid-template-columns: 30px repeat(7, 1fr); min-height: 34px; }
+  .wv-hour-label { font-size: 9px; padding: 2px 3px; }
+  .wv-day-header { padding: 4px 1px; }
+  .wv-day-num { font-size: 13px; }
+  .wv-day-num.today { width: 22px; height: 22px; font-size: 11px; }
+  .wv-ev, .wv-allday-ev { font-size: 10px; padding: 1px 3px; }
+  /* 日历工具栏 */
+  .cal-toolbar { padding: 6px 10px; gap: 4px; }
+  .cal-nav-btn { padding: 3px 6px; font-size: 12px; }
+  .view-btn { padding: 3px 7px; font-size: 11px; }
+  .cal-current { font-size: 12px; min-width: 80px; }
+  /* 垃圾箱 */
+  .trash-columns { grid-template-columns: 1fr; }
+  /* 首页快捷栏 */
+  .quick-bar { padding: 6px 10px; gap: 6px; }
+  .quick-date { font-size: 11px; }
+  /* 日程卡片（首页/日程管理） */
+  .sched-card { padding: 8px 10px; gap: 7px; }
+  .sched-time { width: 52px; font-size: 11px; }
+  .sched-title { font-size: 12px; }
+  .sched-meta { gap: 4px; }
+  /* 日程列表项 */
+  .sli { padding: 8px 10px; gap: 8px; }
+  .sli-date { width: 64px; }
+  .sli-date-main { font-size: 11px; }
+  .sli-date-sub { font-size: 10px; }
+  /* 页面顶部 */
+  .page-header { padding: 8px 10px 0; }
+  .page-header-title { font-size: 16px; }
+  /* 管理页 */
+  .mgmt-toolbar { padding: 8px 10px 6px; gap: 6px; }
+  .mgmt-list { padding: 8px 10px 12px; }
+  .search-bar { min-width: 130px; padding: 6px 9px; }
+  .search-bar input { font-size: 12px; }
+  .filter-pill { padding: 3px 7px; font-size: 11px; }
+  /* 日历待办侧边栏 */
+  .cal-sidebar { max-height: 170px; }
+  /* 表单弹窗 */
+  .modal-content { max-width: 92vw; padding: 14px 16px; }
+  .form-row { gap: 8px; margin-bottom: 10px; }
+  .form-input, .form-select, .form-textarea { font-size: 13px; padding: 7px 10px; }
+  /* 月份选择器 */
+  .month-picker { width: 220px; left: -30px; }
+  /* 便签 */
+  .notes-page { padding: 12px 14px; }
+  .notes-input { font-size: 13px; padding: 8px 10px; }
+  /* 按钮 */
+  .btn-sm { padding: 4px 8px; font-size: 12px; }
 }
 
 /* Tooltip */
@@ -1431,21 +1519,26 @@ ul, ol { list-style: none; }
 }
 .mobile-menu-btn {
   display: none;
+  position: fixed; top: 12px; left: 12px; z-index: 300;
   align-items: center;
   justify-content: center;
   width: 36px; height: 36px;
   border-radius: var(--radius-sm);
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-light);
+  background: rgba(40,40,55,0.55);
+  border: 1px solid rgba(255,255,255,0.1);
   color: var(--text-secondary);
   cursor: pointer;
   font-size: 16px;
   flex-shrink: 0;
+  opacity: 0.75;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
 
 </style>
 </head>
 <body>
+<button class="mobile-menu-btn" onclick="event.stopPropagation();document.getElementById('mainSidebar').classList.toggle('mobile-open');">☰</button>
 <!-- ===== REMINDER TOAST CONTAINER ===== -->
 <div id="reminder-toast-container"></div>
 
@@ -4893,6 +4986,22 @@ function showToast(msg, type) {
   updateNotifPermStatus();
   ghAutoInit();
 
+  // 响应屏幕旋转 / 窗口大小变化（横竖屏、分屏等）
+  let _resizeDebounce = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(_resizeDebounce);
+    _resizeDebounce = setTimeout(() => {
+      var ap = document.querySelector('.page.active');
+      if (!ap) return;
+      if (ap.id === 'page-home') renderHome();
+      if (ap.id === 'page-calendar') { renderCalendar(); renderCalSidebarTodos(); if (filterPanelOpen) renderTagFilterPanel(); if (userFilterPanelOpen) renderUserFilterPanel(); }
+      if (ap.id === 'page-schedules') renderScheduleList();
+      if (ap.id === 'page-todos') renderTodoFull();
+      if (ap.id === 'page-trash') renderTrash();
+      if (ap.id === 'page-notes') renderNoteList();
+    }, 200);
+  });
+
   // ===== REMINDER SYSTEM =====
   // Tracks which reminders have fired today: key = "scheduleId-offsetMin"
   let firedReminders = new Set();
@@ -4989,19 +5098,10 @@ function showToast(msg, type) {
   });
 
   // 移动端侧边栏汉堡菜单
-  function toggleMobileSidebar() {
+  function toggleMobileSidebar(e) {
+    e.stopPropagation();
     document.getElementById('mainSidebar').classList.toggle('mobile-open');
   }
-  // 在各页面 header 插入汉堡按钮（仅小屏显示）
-  document.querySelectorAll('.page-header').forEach(header => {
-    if (!header.querySelector('.mobile-menu-btn')) {
-      const btn = document.createElement('button');
-      btn.className = 'mobile-menu-btn';
-      btn.innerHTML = '☰';
-      btn.onclick = toggleMobileSidebar;
-      header.insertBefore(btn, header.firstChild);
-    }
-  });
   // 点击内容区关闭侧边栏
   document.querySelector('.page-area')?.addEventListener('click', () => {
     document.getElementById('mainSidebar')?.classList.remove('mobile-open');
