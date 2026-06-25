@@ -4036,33 +4036,30 @@ async function ghPull() {
   return true;
 }
 
-// 将本地数据推送到 GitHub
-async function ghPush() {
+// 将本地数据推送到 GitHub（最多重试 3 次，每次重试前拉取合并远端数据）
+async function ghPush(retryCount = 0) {
   const file = localStorage.getItem('gh_file') || 'data.json';
   if (!_ghFileSha) {
     const existing = await _ghGetFile(file);
     if (existing) _ghFileSha = existing.sha;
   }
-  const payload = {
+  const buildPayload = () => ({
     schedules, todos, trash, people, notes,
     tags_config: TAGS_CONFIG,
     vault_enc: (() => { try { return JSON.parse(localStorage.getItem('vault_enc')); } catch(e) { return null; } })(),
     synced_at: new Date().toISOString()
-  };
+  });
   const now = new Date().toISOString();
   const msg = 'sync: ' + now.slice(0, 16).replace('T', ' ');
   try {
-    await _ghPutFile(file, payload, _ghFileSha, msg);
+    await _ghPutFile(file, buildPayload(), _ghFileSha, msg);
   } catch(e) {
-    // SHA 过期（422/409）：重新获取后重试一次
-    if (e.message.includes('422') || e.message.includes('409')) {
-      _ghFileSha = null;
-      const refreshed = await _ghGetFile(file);
-      if (refreshed) _ghFileSha = refreshed.sha;
-      await _ghPutFile(file, payload, _ghFileSha, msg);
-    } else {
-      throw e;
+    // SHA 冲突（422/409）：拉取合并远端数据后重试，最多 3 次
+    if ((e.message.includes('422') || e.message.includes('409')) && retryCount < 3) {
+      await ghPull();
+      return ghPush(retryCount + 1);
     }
+    throw e;
   }
   localStorage.setItem('gh_last_synced', now);
 }
